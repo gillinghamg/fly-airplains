@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sky Bound: Elite Commander</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #020617;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            touch-action: none;
+        }
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+        }
+        .ui-panel {
+            position: absolute;
+            pointer-events: none;
+            user-select: none;
+        }
+        #hud {
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            z-index: 40;
+        }
+        .metric-card {
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(255,255,255,0.15);
+            padding: 12px 24px;
+            color: white;
+            border-radius: 16px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .pfd-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .pfd {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            border: 3px solid #334155;
+            overflow: hidden;
+            position: relative;
+            background: #3b82f6;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+        #pfd-horizon {
+            position: absolute;
+            width: 300%;
+            height: 300%;
+            background: linear-gradient(to bottom, #3b82f6 50%, #78350f 50%);
+            top: -100%;
+            left: -100%;
+            transition: transform 0.05s linear;
+        }
+        #progress-container {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 30;
+        }
+        #progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #3b82f6, #06b6d4);
+            border-radius: 20px;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
+            transition: width 0.1s;
+        }
+        #message-overlay {
+            position: absolute;
+            top: 42%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(15, 23, 42, 0.98);
+            padding: 32px 40px;
+            border-radius: 32px;
+            color: white;
+            display: none;
+            pointer-events: auto;
+            border: 1px solid rgba(255,255,255,0.2);
+            max-width: 600px;
+            width: 95%;
+            max-height: 82vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        .btn {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            padding: 12px 32px;
+            border-radius: 14px;
+            border: none;
+            cursor: pointer;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(37, 99, 235, 0.4);
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+        .level-tag {
+            background: #3b82f6;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: bold;
+            display: inline-block;
+        }
+        .shop-item {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 12px;
+            border-radius: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .hud-toggle-btn {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: white;
+            border-radius: 8px;
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: bold;
+            pointer-events: auto;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .hud-toggle-btn:hover {
+            background: rgba(59, 130, 246, 0.8);
+        }
+        .hud-active {
+            background: rgba(16, 185, 129, 0.8) !important;
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+        /* Collapsible Pilot Sidebar styles */
+        #pilot-sidebar {
+            position: absolute;
+            top: 140px;
+            left: 20px;
+            bottom: 60px;
+            width: 320px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            backdrop-filter: blur(12px);
+            color: white;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 50;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #pilot-sidebar.collapsed {
+            transform: translateX(-360px);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .checkbox-container input:checked + span {
+            text-decoration: line-through;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Collapsible Pilot Sidebar (Electronic Flight Bag) -->
+    <div id="pilot-sidebar" class="collapsed">
+        <!-- Sidebar Header -->
+        <div class="p-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+            <span class="text-sm font-black tracking-wider text-blue-400">📋 ELECTRONIC FLIGHT BAG</span>
+            <button id="sidebar-close-inner" class="hud-toggle-btn text-xs !px-2 !py-0.5">Hide</button>
+        </div>
+        <!-- Sidebar Scrollable Content -->
+        <div class="p-4 flex-1 overflow-y-auto space-y-4">
+            <!-- Flight Checklist Section -->
+            <div class="bg-slate-800/50 rounded-xl p-3 border border-slate-700">
+                <h3 class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">Flight Checklist</h3>
+                <div class="space-y-2 text-xs">
+                    <label class="checkbox-container flex items-center gap-2 cursor-pointer pointer-events-auto">
+                        <input type="checkbox" id="chk-secure" class="rounded border-slate-600 bg-slate-700 text-blue-500 focus:ring-0">
+                        <span>Secure Passenger Cabin</span>
+                    </label>
+                    <label class="checkbox-container flex items-center gap-2 cursor-pointer pointer-events-auto">
+                        <input type="checkbox" id="chk-fuel" class="rounded border-slate-600 bg-slate-700 text-blue-500 focus:ring-0">
+                        <span>Verify Fuel Load 100%</span>
+                    </label>
+                    <label class="checkbox-container flex items-center gap-2 cursor-pointer pointer-events-auto">
+                        <input type="checkbox" id="chk-gear" class="rounded border-slate-600 bg-slate-700 text-blue-500 focus:ring-0">
+                        <span>Retract Gear After Lift-off</span>
+                    </label>
+                    <label class="checkbox-container flex items-center gap-2 cursor-pointer pointer-events-auto">
+                        <input type="checkbox" id="chk-altitude" class="rounded border-slate-600 bg-slate-700 text-blue-500 focus:ring-0">
+                        <span>Engage Autopilot Level Flight</span>
+                    </label>
+                    <label class="checkbox-container flex items-center gap-2 cursor-pointer pointer-events-auto">
+                        <input type="checkbox" id="chk-landing" class="rounded border-slate-600 bg-slate-700 text-blue-500 focus:ring-0">
+                        <span>Align Runway for Descent</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Dynamic METAR Weather Information -->
+            <div class="bg-slate-800/50 rounded-xl p-3 border border-slate-700">
+                <h3 class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">Active Weather Reports</h3>
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <div class="text-slate-400 font-bold uppercase" id="metar-dep-name">Departure METAR</div>
+                        <div class="bg-slate-900/60 p-2 rounded border border-slate-800 font-mono text-[10px]" id="metar-dep-text">
+                            DEP AUTO 12015KT CAVOK 15/10 Q1013
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-slate-400 font-bold uppercase" id="metar-arr-name">Destination METAR</div>
+                        <div class="bg-slate-900/60 p-2 rounded border border-slate-800 font-mono text-[10px]" id="metar-arr-text">
+                            ARR AUTO 09012KT CAVOK 18/12 Q1015
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upgrade Level Progress inside EFB -->
+            <div class="bg-slate-800/50 rounded-xl p-3 border border-slate-700">
+                <h3 class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">Aircraft Specs</h3>
+                <div class="space-y-2 text-xs">
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Cabin Outfitting:</span>
+                        <span id="efb-up-cabin" class="font-bold text-blue-400">Standard</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Engine Type:</span>
+                        <span id="efb-up-engines" class="font-bold text-blue-400">Standard Prop</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Landing Gear Class:</span>
+                        <span id="efb-up-gear" class="font-bold text-blue-400">Standard struts</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Sidebar Footer -->
+        <div class="p-3 bg-slate-950 border-t border-slate-800 text-center text-[10px] text-slate-500">
+            System: EFB v3.2.1 • Operational
+        </div>
+    </div>
+
+    <div id="hud" class="ui-panel">
+        <div class="flex flex-col gap-3 pointer-events-auto">
+            <!-- Active Mission Level Tag and Controls -->
+            <div class="metric-card !py-2 !px-4 self-start">
+                <div class="level-tag" id="level-indicator">LEVEL 1</div>
+            </div>
+            <!-- Interactive Cockpit Controls -->
+            <div class="flex gap-2">
+                <button id="sidebar-toggle" class="hud-toggle-btn">📋 EFB: Closed</button>
+                <button id="audio-toggle" class="hud-toggle-btn">🔊 Sound: Off</button>
+                <button id="ap-toggle" class="hud-toggle-btn">🤖 AP: Off</button>
+            </div>
+        </div>
+
+        <div class="pfd-container">
+            <div class="pfd">
+                <div id="pfd-horizon"></div>
+                <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:40px; height:2px; background:#fbbf24; box-shadow: 0 0 5px black;"></div>
+            </div>
+            <div class="metric-card py-1 px-3">
+                <div id="pitch-val" class="text-xs font-mono text-center">0.0°</div>
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-4">
+            <div class="metric-card">
+                <div class="text-[11px] uppercase font-bold text-emerald-400 tracking-tighter">Passenger Comfort</div>
+                <div id="comfort-val" class="text-2xl font-mono text-emerald-400">100%</div>
+            </div>
+            <div class="flex gap-2">
+                <div class="metric-card">
+                    <div class="text-[11px] uppercase font-bold text-emerald-400 tracking-tighter">Credits</div>
+                    <div id="credits-val" class="text-sm font-mono text-emerald-400">$0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="text-[11px] uppercase font-bold text-slate-400 tracking-tighter">Distance</div>
+                    <div id="dist-val" class="text-sm font-mono">0.0 NM</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="progress-container" class="ui-panel">
+        <div id="progress-bar"></div>
+    </div>
+
+    <div id="message-overlay">
+        <h1 id="msg-title" class="text-4xl font-black mb-2 tracking-tight">MISSION BRIEF</h1>
+        <p id="msg-body" class="mb-6 text-slate-400 text-sm leading-relaxed">
+            Ready for your next flight?
+        </p>
+        
+        <div id="shop-container" class="hidden mb-6">
+            <h2 class="text-left text-xs font-bold text-slate-500 uppercase mb-3 tracking-widest">Hangar Upgrades</h2>
+            <div id="shop-list" class="space-y-2">
+                <!-- Shop items will be injected here -->
+            </div>
+        </div>
+
+        <div id="level-details" class="bg-slate-900/80 p-4 rounded-2xl border border-slate-700 text-left space-y-2 mb-6">
+            <!-- Dynamic Content -->
+        </div>
+        <button id="start-btn" class="btn">Begin Mission</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const msgOverlay = document.getElementById('message-overlay');
+    const msgTitle = document.getElementById('msg-title');
+    const msgBody = document.getElementById('msg-body');
+    const startBtn = document.getElementById('start-btn');
+    const levelDetails = document.getElementById('level-details');
+    const progBar = document.getElementById('progress-bar');
+    const pfdHorizon = document.getElementById('pfd-horizon');
+    const levelUI = document.getElementById('level-indicator');
+    const shopContainer = document.getElementById('shop-container');
+    const shopList = document.getElementById('shop-list');
+    const audioToggleBtn = document.getElementById('audio-toggle');
+    const apToggleBtn = document.getElementById('ap-toggle');
+    
+    // Sidebar DOM nodes
+    const sidebarToggleBtn = document.getElementById('sidebar-toggle');
+    const sidebarElement = document.getElementById('pilot-sidebar');
+    const sidebarCloseInner = document.getElementById('sidebar-close-inner');
+    const metarDepName = document.getElementById('metar-dep-name');
+    const metarDepText = document.getElementById('metar-dep-text');
+    const metarArrName = document.getElementById('metar-arr-name');
+    const metarArrText = document.getElementById('metar-arr-text');
+    const efbUpCabin = document.getElementById('efb-up-cabin');
+    const efbUpEngines = document.getElementById('efb-up-engines');
+    const efbUpGear = document.getElementById('efb-up-gear');
+
+    // Checklist checkboxes
+    const chkSecure = document.getElementById('chk-secure');
+    const chkFuel = document.getElementById('chk-fuel');
+    const chkGear = document.getElementById('chk-gear');
+    const chkAltitude = document.getElementById('chk-altitude');
+    const chkLanding = document.getElementById('chk-landing');
+
+    const comfortUI = document.getElementById('comfort-val');
+    const creditsUI = document.getElementById('credits-val');
+    const distUI = document.getElementById('dist-val');
+    const pitchUI = document.getElementById('pitch-val');
+
+    // Economy & Upgrade State
+    let credits = 0;
+    const upgrades = {
+        cabin: { level: 0, max: 3, cost: 500, label: "Luxury Cabin", desc: "Passively boosts passenger comfort values.", icon: "✨" },
+        engines: { level: 0, max: 3, cost: 800, label: "Advanced Turboprops", desc: "Increases flight speed.", icon: "🌀" },
+        gear: { level: 0, max: 3, cost: 1200, label: "Reinforced Gear", desc: "Tolerates harder landings.", icon: "🛠️" }
+    };
+
+    let gameActive = false;
+    let currentLevel = 1;
+
+    // Updated flight configurations to feature our beautiful new airports
+    const levelConfig = {
+        1: { dist: 600, weather: 'Clear', desc: 'Depart Sky Harbor and land at tropical Coconut Bay.', title: 'LEVEL 1: ISLAND FLIGHT', depAirport: 'classic', arrAirport: 'tropical' },
+        2: { dist: 800, weather: 'Optimal', desc: 'Depart Coconut Bay and fly up to Cloud Valley Executive.', title: 'LEVEL 2: HIGHLAND CRUISE', depAirport: 'tropical', arrAirport: 'mountain' },
+        3: { dist: 1000, weather: 'Scenic', desc: 'Fly from the peaks of Cloud Valley to arctic Glacier Bay.', title: 'LEVEL 3: FROZEN CROSSING', depAirport: 'mountain', arrAirport: 'arctic' },
+        4: { dist: 1200, weather: 'Serene', desc: 'Fly out of Glacier Bay back to city hub Sky Harbor.', title: 'LEVEL 4: TRANSCONTINENTAL', depAirport: 'arctic', arrAirport: 'classic' },
+        5: { dist: 1500, weather: 'Golden', desc: 'Final long range flight from Sky Harbor to Cloud Valley.', title: 'LEVEL 5: ELITE PILOT', depAirport: 'classic', arrAirport: 'mountain' }
+    };
+
+    let distance = 0;
+    let totalLevelDistance = 600;
+    let comfort = 100;
+    let time = 0;
+    let landingPhase = false;
+    let takeoffPhase = false;
+    let boardingPhase = true;
+    let autopilotActive = false;
+    let sidebarOpen = false;
+
+    // Boarding & Refueling Variables
+    let passengersBoarded = 0;
+    const totalPassengers = 150;
+    const passengers = []; // Array to store walking passenger objects
+    let fuelLoaded = 0;
+    const totalFuelNeeded = 100;
+
+    const plane = {
+        x: 220,
+        y: 350,
+        velY: 0,
+        rot: 0,
+        gearPos: 1, 
+        particles: []
+    };
+
+    const keys = {};
+    const objects = [];
+    const clouds = [];
+    const stars = [];
+
+    // Sound System Variables (Synthesized Web Audio API)
+    let audioCtx = null;
+    let engineOsc = null;
+    let engineGain = null;
+    let audioEnabled = false;
+
+    for(let i=0; i<80; i++) stars.push({x: Math.random() * 3000, y: Math.random() * 1200, s: Math.random() * 1.5 + 0.5});
+    for(let i=0; i<20; i++) clouds.push({x: Math.random() * 3000, y: Math.random() * 800, s: 0.5 + Math.random() * 1.5, w: 150 + Math.random() * 250, op: 0.1 + Math.random() * 0.3});
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    window.addEventListener('keydown', e => keys[e.code] = true);
+    window.addEventListener('keyup', e => keys[e.code] = false);
+
+    // Click listeners for Interactive Cockpit Buttons
+    audioToggleBtn.addEventListener('click', toggleAudio);
+    apToggleBtn.addEventListener('click', toggleAutopilot);
+    sidebarToggleBtn.addEventListener('click', toggleSidebar);
+    sidebarCloseInner.addEventListener('click', toggleSidebar);
+
+    function initAudio() {
+        if (audioCtx) return;
+        try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Setup Low-Frequency Engine Oscillator
+            engineOsc = audioCtx.createOscillator();
+            engineGain = audioCtx.createGain();
+            
+            // Sawtooth waves sound a lot like buzzing propellers!
+            engineOsc.type = 'sawtooth';
+            engineOsc.frequency.setValueAtTime(55, audioCtx.currentTime); // Low baritone drone
+            
+            // Engine volume filter
+            engineGain.gain.setValueAtTime(0, audioCtx.currentTime);
+            
+            // Low pass filter to make it sound muffled inside the cabin
+            const lowpass = audioCtx.createBiquadFilter();
+            lowpass.type = 'lowpass';
+            lowpass.frequency.setValueAtTime(220, audioCtx.currentTime);
+            
+            engineOsc.connect(lowpass);
+            lowpass.connect(engineGain);
+            engineGain.connect(audioCtx.destination);
+            engineOsc.start();
+        } catch (e) {
+            console.warn("AudioContext failed to initialize:", e);
+        }
+    }
+
+    function toggleAudio() {
+        initAudio();
+        if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        audioEnabled = !audioEnabled;
+        if (audioEnabled) {
+            audioToggleBtn.innerText = "🔊 Sound: On";
+            audioToggleBtn.classList.add('hud-active');
+            if (engineGain && gameActive && !boardingPhase) {
+                engineGain.gain.setTargetAtTime(0.08, audioCtx.currentTime, 0.5);
+            }
+        } else {
+            audioToggleBtn.innerText = "🔇 Sound: Off";
+            audioToggleBtn.classList.remove('hud-active');
+            if (engineGain) {
+                engineGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.2);
+            }
+        }
+    }
+
+    function toggleAutopilot() {
+        autopilotActive = !autopilotActive;
+        if (autopilotActive) {
+            apToggleBtn.innerText = "🤖 AP: Active";
+            apToggleBtn.classList.add('hud-active');
+        } else {
+            apToggleBtn.innerText = "🤖 AP: Off";
+            apToggleBtn.classList.remove('hud-active');
+        }
+    }
+
+    function toggleSidebar() {
+        sidebarOpen = !sidebarOpen;
+        if (sidebarOpen) {
+            sidebarElement.classList.remove('collapsed');
+            sidebarToggleBtn.innerText = "📋 EFB: Open";
+            sidebarToggleBtn.classList.add('hud-active');
+        } else {
+            sidebarElement.classList.add('collapsed');
+            sidebarToggleBtn.innerText = "📋 EFB: Closed";
+            sidebarToggleBtn.classList.remove('hud-active');
+        }
+    }
+
+    function playDingDongChime() {
+        if (!audioEnabled || !audioCtx) return;
+        const now = audioCtx.currentTime;
+        
+        // High note
+        const osc1 = audioCtx.createOscillator();
+        const gain1 = audioCtx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(554.37, now); // C#5
+        gain1.gain.setValueAtTime(0, now);
+        gain1.gain.linearRampToValueAtTime(0.12, now + 0.05);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+        osc1.connect(gain1);
+        gain1.connect(audioCtx.destination);
+        osc1.start(now);
+        osc1.stop(now + 1.0);
+
+        // Low note
+        const osc2 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(440.00, now + 0.45); // A4
+        gain2.gain.setValueAtTime(0, now + 0.45);
+        gain2.gain.linearRampToValueAtTime(0.12, now + 0.5);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 1.4);
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.destination);
+        osc2.start(now + 0.45);
+        osc2.stop(now + 1.5);
+    }
+
+    function buyUpgrade(key) {
+        const item = upgrades[key];
+        if (credits >= item.cost && item.level < item.max) {
+            credits -= item.cost;
+            item.level++;
+            item.cost = Math.floor(item.cost * 1.8);
+            updateCreditsUI();
+            renderShop();
+            syncEFBUpgrades();
+        }
+    }
+
+    // Sync the upgraded stats straight to our Electronic Flight Bag (EFB)
+    function syncEFBUpgrades() {
+        efbUpCabin.innerText = upgrades.cabin.level === 0 ? "Standard" : `First Class Lvl ${upgrades.cabin.level}`;
+        efbUpEngines.innerText = upgrades.engines.level === 0 ? "Standard Prop" : `Propeller Upgrade Lvl ${upgrades.engines.level}`;
+        efbUpGear.innerText = upgrades.gear.level === 0 ? "Standard struts" : `Hydraulic Suspension Lvl ${upgrades.gear.level}`;
+    }
+
+    // Dynamically write aeronautical METAR reports for the EFB Sidebar
+    function syncEFBWeather() {
+        const config = levelConfig[currentLevel];
+        
+        metarDepName.innerText = `Departure: ${config.depAirport.toUpperCase()} FIELD`;
+        metarArrName.innerText = `Destination: ${config.arrAirport.toUpperCase()} FIELD`;
+        
+        // Generate random realistic-looking METAR text blocks
+        const windDirDep = Math.floor(Math.random() * 36) * 10;
+        const windSpdDep = Math.floor(Math.random() * 12) + 5;
+        const qDep = Math.floor(Math.random() * 10) + 1008;
+        
+        const windDirArr = Math.floor(Math.random() * 36) * 10;
+        const windSpdArr = Math.floor(Math.random() * 18) + 5;
+        const qArr = Math.floor(Math.random() * 10) + 1008;
+
+        metarDepText.innerText = `${config.depAirport.substring(0,3).toUpperCase()} AUTO ${String(windDirDep).padStart(3, '0')}${windSpdDep}KT CAVOK 15/10 Q${qDep}`;
+        metarArrText.innerText = `${config.arrAirport.substring(0,3).toUpperCase()} AUTO ${String(windDirArr).padStart(3, '0')}${windSpdArr}KT CAVOK 18/12 Q${qArr}`;
+    }
+
+    function renderShop() {
+        shopList.innerHTML = '';
+        Object.keys(upgrades).forEach(key => {
+            const item = upgrades[key];
+            const isMax = item.level >= item.max;
+            const canAfford = credits >= item.cost;
+            
+            const div = document.createElement('div');
+            div.className = 'shop-item';
+            div.innerHTML = `
+                <div class="text-left">
+                    <div class="text-sm font-bold text-white">${item.icon} ${item.label} <span class="text-blue-400">[Lvl ${item.level}]</span></div>
+                    <div class="text-[10px] text-slate-400">${item.desc}</div>
+                </div>
+                <button class="btn !py-1 !px-4 !text-xs" ${isMax || !canAfford ? 'disabled' : ''} onclick="buyUpgrade('${key}')">
+                    ${isMax ? 'MAXED' : '$' + item.cost}
+                </button>
+            `;
+            shopList.appendChild(div);
+        });
+    }
+
+    function updateCreditsUI() {
+        creditsUI.innerText = `$${Math.floor(credits)}`;
+    }
+
+    // Handles drawing the designated airport with its specific style, decor, and scenery!
+    function drawAirport(xOffset, type, isDeparture) {
+        const floorY = canvas.height - 90;
+
+        if (type === 'classic') {
+            // --- CLASSIC: SKY HARBOR INTERNATIONAL ---
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(xOffset - 1000, floorY, 4000, 100);
+
+            // Modern terminal building
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(xOffset + 200, floorY - 150, 600, 150);
+            
+            // Terminal windows
+            ctx.fillStyle = '#64748b';
+            for(let i=0; i<12; i++) {
+                for(let j=0; j<3; j++) {
+                    ctx.fillRect(xOffset + 230 + i*45, floorY - 130 + j*40, 30, 20);
+                }
+            }
+            
+            // Tall classic Control Tower
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(xOffset + 850, floorY - 250, 40, 250);
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(xOffset + 820, floorY - 280, 100, 40);
+            ctx.fillStyle = '#facc15';
+            ctx.fillRect(xOffset + 830, floorY - 275, 80, 20); // Glowing windows
+
+            // Hangar
+            ctx.fillStyle = '#475569';
+            ctx.beginPath();
+            ctx.moveTo(xOffset - 500, floorY);
+            ctx.lineTo(xOffset - 500, floorY - 120);
+            ctx.quadraticCurveTo(xOffset - 250, floorY - 180, xOffset, floorY - 120);
+            ctx.lineTo(xOffset, floorY);
+            ctx.fill();
+
+            // Runway label
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 30px Arial';
+            ctx.fillText("SKY HARBOR", xOffset + 100, floorY - 20);
+
+        } else if (type === 'tropical') {
+            // --- TROPICAL: COCONUT BAY AIRFIELD ---
+            ctx.fillStyle = '#cbd5e1'; 
+            ctx.fillRect(xOffset - 1000, floorY, 4000, 100);
+            ctx.fillStyle = '#eab308'; // Sandy shoulder
+            ctx.fillRect(xOffset - 1000, floorY, 4000, 10);
+
+            // Wooden terminal buildings
+            ctx.fillStyle = '#78350f';
+            ctx.fillRect(xOffset + 250, floorY - 90, 300, 90);
+            ctx.fillStyle = '#a16207'; // Roof
+            ctx.beginPath();
+            ctx.moveTo(xOffset + 220, floorY - 90);
+            ctx.lineTo(xOffset + 400, floorY - 140);
+            ctx.lineTo(xOffset + 580, floorY - 90);
+            ctx.fill();
+
+            // Circular windows
+            ctx.fillStyle = '#fef08a';
+            for(let i=0; i<5; i++) {
+                ctx.beginPath();
+                ctx.arc(xOffset + 290 + i*50, floorY - 45, 12, 0, Math.PI*2);
+                ctx.fill();
+            }
+
+            // Swaying Palm Trees
+            function drawPalmTree(px, py) {
+                ctx.strokeStyle = '#7c2d12';
+                ctx.lineWidth = 10;
+                ctx.beginPath();
+                ctx.moveTo(px, py);
+                ctx.quadraticCurveTo(px - 15, py - 60, px - 10, py - 120);
+                ctx.stroke();
+
+                // Leaves
+                ctx.fillStyle = '#15803d';
+                ctx.beginPath();
+                ctx.ellipse(px - 10, py - 120, 40, 15, -0.4, 0, Math.PI*2);
+                ctx.ellipse(px - 10, py - 120, 40, 15, 0.4, 0, Math.PI*2);
+                ctx.ellipse(px - 10, py - 120, 15, 45, 0, 0, Math.PI*2);
+                ctx.fill();
+            }
+            drawPalmTree(xOffset + 100, floorY);
+            drawPalmTree(xOffset + 650, floorY);
+
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 30px Arial';
+            ctx.fillText("COCONUT BAY", xOffset + 260, floorY - 150);
+
+        } else if (type === 'mountain') {
+            // --- MOUNTAIN: CLOUD VALLEY EXECUTIVE ---
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(xOffset - 1000, floorY, 4000, 100);
+
+            // Mountain peaks background
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.moveTo(xOffset - 800, floorY);
+            ctx.lineTo(xOffset - 400, floorY - 300);
+            ctx.lineTo(xOffset, floorY);
+            ctx.moveTo(xOffset, floorY);
+            ctx.lineTo(xOffset + 500, floorY - 350);
+            ctx.lineTo(xOffset + 1000, floorY);
+            ctx.fill();
+
+            // High-tech curved terminal domes
+            ctx.fillStyle = '#475569';
+            ctx.beginPath();
+            ctx.ellipse(xOffset + 450, floorY, 200, 130, 0, Math.PI, Math.PI*2);
+            ctx.fill();
+
+            // Neon cyan window bands
+            ctx.fillStyle = '#06b6d4';
+            ctx.beginPath();
+            ctx.ellipse(xOffset + 450, floorY, 170, 40, 0, Math.PI, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#475569';
+            ctx.beginPath();
+            ctx.ellipse(xOffset + 450, floorY, 170, 30, 0, Math.PI, Math.PI*2);
+            ctx.fill();
+
+            // Modern spire control tower
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(xOffset + 180, floorY - 220, 30, 220);
+            ctx.fillStyle = '#06b6d4'; // Cyan landing beacon glow
+            ctx.beginPath();
+            ctx.arc(xOffset + 195, floorY - 230, 15, 0, Math.PI*2);
+            ctx.fill();
+
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 30px Arial';
+            ctx.fillText("CLOUD VALLEY", xOffset + 350, floorY - 150);
+
+        } else if (type === 'arctic') {
+            // --- ARCTIC: GLACIER BAY LANDING ---
+            ctx.fillStyle = '#38bdf8'; // Icy base
+            ctx.fillRect(xOffset - 1000, floorY, 4000, 100);
+            ctx.fillStyle = '#f8fafc'; // Fresh snow covering edges
+            ctx.fillRect(xOffset - 1000, floorY, 4000, 25);
+
+            // Pine tree landscape
+            function drawPineTree(px, py) {
+                ctx.fillStyle = '#065f46';
+                ctx.beginPath();
+                ctx.moveTo(px, py - 120);
+                ctx.lineTo(px - 30, py - 60);
+                ctx.lineTo(px - 10, py - 60);
+                ctx.lineTo(px - 40, py);
+                ctx.lineTo(px + 40, py);
+                ctx.lineTo(px + 10, py - 60);
+                ctx.lineTo(px + 30, py - 60);
+                ctx.closePath();
+                ctx.fill();
+
+                // Snow patches on branches
+                ctx.fillStyle = '#f8fafc';
+                ctx.beginPath();
+                ctx.moveTo(px, py - 120);
+                ctx.lineTo(px - 15, py - 90);
+                ctx.lineTo(px + 15, py - 90);
+                ctx.closePath();
+                ctx.fill();
+            }
+            drawPineTree(xOffset - 150, floorY);
+            drawPineTree(xOffset + 850, floorY);
+
+            // Log cabin terminal
+            ctx.fillStyle = '#1e3a8a'; // Deep blue warm logs
+            ctx.fillRect(xOffset + 300, floorY - 110, 260, 110);
+            
+            // Warm orange glowing windows
+            ctx.fillStyle = '#f97316';
+            ctx.fillRect(xOffset + 340, floorY - 70, 40, 40);
+            ctx.fillRect(xOffset + 440, floorY - 70, 40, 40);
+
+            // Snowy rooftop
+            ctx.fillStyle = '#f8fafc';
+            ctx.beginPath();
+            ctx.moveTo(xOffset + 270, floorY - 110);
+            ctx.lineTo(xOffset + 430, floorY - 170);
+            ctx.lineTo(xOffset + 590, floorY - 110);
+            ctx.lineTo(xOffset + 560, floorY - 110);
+            ctx.lineTo(xOffset + 430, floorY - 150);
+            ctx.lineTo(xOffset + 300, floorY - 110);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 30px Arial';
+            ctx.fillText("GLACIER BAY", xOffset + 330, floorY - 190);
+        }
+
+        // Shared Runway Markings
+        ctx.strokeStyle = '#facc15'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(xOffset - 1000, floorY + 5); ctx.lineTo(xOffset + 3000, floorY + 5); ctx.stroke();
+        
+        ctx.fillStyle = 'white'; ctx.font = 'bold 40px Arial';
+        ctx.fillText(isDeparture ? "DEP" : "ARR", xOffset + 100, floorY + 45);
+    }
+
+    // Renders the jet bridge (boarding bridge) connecting airport to airplane door
+    let jetBridgeWidth = 140; 
+    function drawJetBridge(pX, pY) {
+        ctx.save();
+        ctx.lineWidth = 3;
+
+        // Draw Support Pillars
+        ctx.strokeStyle = '#334155';
+        ctx.beginPath();
+        ctx.moveTo(pX - 90, pY);
+        ctx.lineTo(pX - 90, canvas.height - 90);
+        ctx.stroke();
+
+        // Main Bridge Body
+        const gradient = ctx.createLinearGradient(pX - 160, pY - 20, pX - 20, pY + 20);
+        gradient.addColorStop(0, '#475569');
+        gradient.addColorStop(1, '#64748b');
+        ctx.fillStyle = gradient;
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 4;
+
+        // Rounded Bridge Tunnel
+        ctx.beginPath();
+        ctx.roundRect(pX - 160, pY - 25, jetBridgeWidth, 40, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        // Bridge accordion connector to aircraft body
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(pX - 160 + jetBridgeWidth - 10, pY - 28, 15, 46);
+
+        // Windows along the bridge
+        ctx.fillStyle = '#06b6d4';
+        for(let i = 0; i < 3; i++) {
+            if (pX - 145 + i*40 < pX - 160 + jetBridgeWidth - 15) {
+                ctx.fillRect(pX - 145 + i*40, pY - 15, 20, 15);
+            }
+        }
+
+        ctx.restore();
+    }
+
+    // Renders the ground refueler truck ("floor tank") parked next to the plane during boarding
+    function drawRefuelTruck(tx, ty, px, py) {
+        ctx.save();
+        
+        // Draw the black rubber fuel hose curving from the truck's tank to the plane's wing engine
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 4.5;
+        ctx.beginPath();
+        ctx.moveTo(tx - 10, ty - 18);
+        ctx.quadraticCurveTo(tx - 35, ty - 60, px + 25, py + 19); // curves up to the near wing propeller hub
+        ctx.stroke();
+
+        // Refuel truck wheels (black tires with grey hubs)
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(tx - 40, ty, 8, 0, Math.PI*2);
+        ctx.arc(tx - 10, ty, 8, 0, Math.PI*2);
+        ctx.arc(tx + 25, ty, 8, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#94a3b8';
+        ctx.beginPath();
+        ctx.arc(tx - 40, ty, 3.5, 0, Math.PI*2);
+        ctx.arc(tx - 10, ty, 3.5, 0, Math.PI*2);
+        ctx.arc(tx + 25, ty, 3.5, 0, Math.PI*2);
+        ctx.fill();
+
+        // Truck chassis & cabin
+        ctx.fillStyle = '#ea580c'; // Safety orange
+        ctx.beginPath();
+        ctx.roundRect(tx + 12, ty - 22, 28, 22, [0, 4, 0, 0]);
+        ctx.fill();
+        
+        // Front bumper
+        ctx.fillStyle = '#475569';
+        ctx.fillRect(tx + 36, ty - 6, 8, 6);
+
+        // Windshield glass (cyan blue)
+        ctx.fillStyle = '#06b6d4';
+        ctx.beginPath();
+        ctx.roundRect(tx + 24, ty - 18, 12, 10, [0, 2, 0, 0]);
+        ctx.fill();
+
+        // Large Ground Fuel Tank (cylinder on the chassis back)
+        const tankGrad = ctx.createLinearGradient(tx - 55, ty - 32, tx + 10, ty - 8);
+        tankGrad.addColorStop(0, '#e2e8f0');
+        tankGrad.addColorStop(0.5, '#94a3b8');
+        tankGrad.addColorStop(1, '#475569');
+        ctx.fillStyle = tankGrad;
+        ctx.beginPath();
+        ctx.roundRect(tx - 55, ty - 27, 65, 23, 5);
+        ctx.fill();
+
+        // Fuel Hazard Warning signs on the truck
+        ctx.fillStyle = '#ef4444'; // Red hazard diamond
+        ctx.beginPath();
+        ctx.moveTo(tx - 25, ty - 16);
+        ctx.lineTo(tx - 20, ty - 21);
+        ctx.lineTo(tx - 15, ty - 16);
+        ctx.lineTo(tx - 20, ty - 11);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 7px Inter';
+        ctx.fillText("FLAMMABLE", tx - 48, ty - 14);
+
+        ctx.restore();
+    }
+
+    function drawPlane(p) {
+        // Dynamic Heat Exhaust and Turboprop Particles
+        if (gameActive && time % 2 === 0 && !takeoffPhase && !landingPhase && !boardingPhase) {
+            // Far wing engine trail (transparent heat shimmer/smoke)
+            p.particles.push({ x: p.x - 45, y: p.y - 12, s: 7, o: 0.2, type: 'heat' });
+            // Near wing engine trail
+            p.particles.push({ x: p.x - 35, y: p.y + 18, s: 7, o: 0.2, type: 'heat' });
+        }
+        
+        p.particles.forEach((part, i) => {
+            ctx.fillStyle = `rgba(226, 232, 240, ${part.o})`;
+            ctx.beginPath(); ctx.arc(part.x, part.y, part.s, 0, Math.PI*2); ctx.fill();
+            part.x -= 10; part.o -= 0.015; part.s += 0.3; // Expand slightly like real exhaust
+            if (part.o <= 0) p.particles.splice(i, 1);
+        });
+        
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        
+        const targetGear = (p.y > canvas.height - 180 || landingPhase || takeoffPhase || boardingPhase) ? 1 : 0;
+        p.gearPos += (targetGear - p.gearPos) * 0.05;
+        if (p.gearPos > 0.01) {
+            ctx.strokeStyle = '#475569'; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(35, 10); ctx.lineTo(35, 10 + (15 * p.gearPos)); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-15, 12); ctx.lineTo(-15, 12 + (15 * p.gearPos)); ctx.stroke();
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath(); ctx.arc(35, 10 + (15 * p.gearPos), 4, 0, Math.PI*2); ctx.arc(-15, 12 + (15 * p.gearPos), 5, 0, Math.PI*2); ctx.fill();
+        }
+
+        function drawPropeller(propX, propY) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.beginPath();
+            ctx.arc(propX, propY, 20, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Blades spin only when engines are running (not during quiet boarding)
+            const angle = boardingPhase ? 0 : time * 0.65; 
+            ctx.save();
+            ctx.translate(propX, propY);
+            ctx.rotate(angle);
+            
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 2.5;
+            
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -20); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 20); ctx.stroke();
+
+            ctx.fillStyle = '#fbbf24';
+            ctx.beginPath();
+            ctx.arc(0, -20, 2.5, 0, Math.PI * 2);
+            ctx.arc(0, 20, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+
+            ctx.fillStyle = '#cbd5e1';
+            ctx.beginPath(); ctx.arc(propX, propY, 4, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // --- FAR WING & PROPULSION POD ---
+        ctx.fillStyle = '#cbd5e1';
+        ctx.beginPath();
+        ctx.moveTo(0, -5); ctx.lineTo(-25, -35); ctx.lineTo(-10, -35); ctx.lineTo(15, -5);
+        ctx.fill();
+        
+        ctx.fillStyle = '#475569';
+        ctx.fillRect(-15, -20, 32, 10);
+        drawPropeller(17, -15);
+
+        // FAR WING NAVIGATION LIGHT (Solid Red)
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath(); ctx.arc(-20, -35, 3.5, 0, Math.PI*2); ctx.fill();
+
+        // --- TAIL ASSEMBLY ---
+        ctx.fillStyle = '#2563eb';
+        ctx.beginPath(); ctx.moveTo(-55, -8); ctx.lineTo(-85, -50); ctx.lineTo(-60, -50); ctx.lineTo(-35, -8); ctx.fill();
+        
+        // TAIL BEACON FLASHING STROBE (White - flashes once every 30 frames)
+        if (time % 30 < 4) {
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); ctx.arc(-80, -48, 5, 0, Math.PI*2); ctx.fill();
+        } else {
+            ctx.fillStyle = '#cbd5e1';
+            ctx.beginPath(); ctx.arc(-80, -48, 3, 0, Math.PI*2); ctx.fill();
+        }
+
+        // --- NEAR WING ---
+        ctx.fillStyle = '#e2e8f0';
+        ctx.beginPath(); ctx.moveTo(15, 0); ctx.lineTo(-35, 55); ctx.lineTo(-10, 55); ctx.lineTo(35, 0); ctx.fill();
+
+        // Near wing engine nacelle
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(-10, 13, 35, 12);
+
+        // NEAR WING NAVIGATION LIGHT (Solid Green)
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath(); ctx.arc(-30, 55, 3.5, 0, Math.PI*2); ctx.fill();
+
+        // --- FUSELAGE ---
+        const grad = ctx.createLinearGradient(0, -15, 0, 15);
+        grad.addColorStop(0, '#ffffff'); grad.addColorStop(1, '#cbd5e1');
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.ellipse(0, 0, 85, 18, 0, 0, Math.PI*2); ctx.fill();
+
+        // Draw Near propeller over the fuselage/wing connection
+        drawPropeller(25, 19);
+
+        // --- COCKPIT ---
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath(); ctx.moveTo(55, -10); ctx.quadraticCurveTo(85, 0, 55, 10); ctx.fill();
+        
+        // Passenger cabin windows glow (inside lights on)
+        ctx.fillStyle = '#fef08a';
+        for(let i=0; i<6; i++) {
+            ctx.fillRect(-35 + (i*12), -4, 4, 4);
+        }
+
+        ctx.restore();
+    }
+
+    function update() {
+        if (!gameActive) return;
+        time++;
+
+        if (boardingPhase) {
+            // SPARK WALKING PASSENGERS
+            if (passengersBoarded < totalPassengers && time % 25 === 0) {
+                passengers.push({
+                    x: plane.x - 160,
+                    y: plane.y - 12,
+                    color: `hsl(${Math.random() * 360}, 85%, 60%)`,
+                    step: 0
+                });
+            }
+
+            // Move Passengers
+            for (let i = passengers.length - 1; i >= 0; i--) {
+                const passenger = passengers[i];
+                passenger.x += 1.2;
+                passenger.step += 0.25;
+
+                if (passenger.x >= plane.x - 30) {
+                    passengersBoarded = Math.min(totalPassengers, passengersBoarded + 10);
+                    passengers.splice(i, 1);
+                }
+            }
+
+            // REFUELING SIMULATION RUNTIME (fuel pumps steadily during boarding)
+            if (fuelLoaded < totalFuelNeeded && time % 6 === 0) {
+                fuelLoaded = Math.min(totalFuelNeeded, fuelLoaded + 2.5);
+            }
+
+            // Update flight checklists inside EFB sidebar
+            if (passengersBoarded > 20) chkSecure.checked = true;
+            if (fuelLoaded >= totalFuelNeeded) chkFuel.checked = true;
+
+            // Completed BOTH Boarding AND Fueling?
+            if (passengersBoarded >= totalPassengers && fuelLoaded >= totalFuelNeeded && passengers.length === 0) {
+                // Animate Retracting Jet Bridge
+                if (jetBridgeWidth > 0) {
+                    jetBridgeWidth -= 2;
+                } else {
+                    boardingPhase = false;
+                    takeoffPhase = true;
+                    jetBridgeWidth = 140; 
+                    
+                    playDingDongChime();
+                    
+                    if (audioCtx && audioEnabled && engineGain) {
+                        engineGain.gain.setTargetAtTime(0.08, audioCtx.currentTime, 0.8);
+                    }
+                }
+            }
+        }
+
+        if (takeoffPhase) {
+            const speedBonus = 1 + (upgrades.engines.level * 0.2);
+            distance -= 0.3 * speedBonus; 
+            const groundLevel = canvas.height - 110;
+            if (plane.y < groundLevel - 20) {
+                takeoffPhase = false;
+                chkGear.checked = true; // Auto checklist check for gear lift
+            }
+        }
+
+        if (!boardingPhase && !takeoffPhase) {
+            const speedBonus = 1 + (upgrades.engines.level * 0.2);
+            distance -= 0.18 * speedBonus; 
+            
+            const luxuryReplenish = upgrades.cabin.level * 0.02;
+            comfort = Math.min(100, comfort + luxuryReplenish);
+            
+            credits += 5 / 60; 
+            updateCreditsUI();
+        }
+
+        // Steer Plane (only after boarding is fully complete)
+        if (!boardingPhase) {
+            let flightControlActive = false;
+            
+            if (autopilotActive) {
+                const cruiseAlt = (canvas.height / 2) - 30;
+                const errorY = cruiseAlt - plane.y;
+                plane.velY += errorY * 0.025;
+                plane.velY *= 0.90;
+                plane.rot += (plane.velY * 0.05 - plane.rot) * 0.1;
+                chkAltitude.checked = true; // Auto checklist check for active AP
+            } else {
+                if (keys['ArrowUp'] || keys['KeyW']) {
+                    plane.velY -= 0.42;
+                    plane.rot = Math.max(-0.3, plane.rot - 0.025);
+                    flightControlActive = true;
+                } else if (keys['ArrowDown'] || keys['KeyS']) {
+                    plane.velY += 0.42;
+                    plane.rot = Math.min(0.3, plane.rot + 0.025);
+                    flightControlActive = true;
+                }
+            }
+            
+            if (!flightControlActive && !autopilotActive) {
+                plane.velY *= 0.98;
+                plane.rot *= 0.92;
+            }
+
+            plane.y += plane.velY;
+            
+            const groundLevel = canvas.height - 110;
+            if (plane.y > groundLevel) {
+                plane.y = groundLevel;
+                plane.velY = 0;
+                plane.rot = 0;
+            }
+        }
+
+        if (distance < 40 && !landingPhase && !boardingPhase) {
+            landingPhase = true;
+            chkLanding.checked = true; // Auto checklist check for landing prep
+            if (autopilotActive) toggleAutopilot();
+        }
+
+        pfdHorizon.style.transform = `rotate(${-plane.rot}rad) translateY(${plane.velY * 2.5}px)`;
+
+        if (landingPhase && distance <= 0) {
+            const groundLevel = canvas.height - 110;
+            if (plane.y > groundLevel - 5) {
+                const landingThreshold = 3.8 + (upgrades.gear.level * 1.5);
+                const isSoft = Math.abs(plane.velY) < landingThreshold;
+                if (isSoft) {
+                    const levelBonus = currentLevel * 500;
+                    const comfortBonus = comfort * 5;
+                    credits += levelBonus + comfortBonus;
+                    
+                    if (engineGain) engineGain.gain.setTargetAtTime(0.01, audioCtx.currentTime, 0.4);
+                    
+                    if (currentLevel < 5) {
+                        currentLevel++;
+                        endGame(`FLIGHT COMPLETE`, `Earned $${Math.floor(levelBonus + comfortBonus)} in rewards. Ready to depart for the next airport!`, true);
+                    } else {
+                        endGame("WINGS OF GOLD", "Final mission complete! You are the richest pilot in the skies and have connected all world airports.", true);
+                    }
+                } else {
+                    endGame("CRASH LANDING", "Structural failure on landing gear. Mission failed.");
+                }
+            }
+        }
+
+        const baseSpeed = 300;
+        const speedMultiplier = 1 + (upgrades.engines.level * 0.15);
+        const dynamicAirspeed = boardingPhase ? 0 : Math.floor((baseSpeed * speedMultiplier) - (plane.velY * 6));
+
+        if (audioCtx && audioEnabled && engineOsc) {
+            const pitchTarget = 40 + (dynamicAirspeed * 0.08);
+            engineOsc.frequency.setTargetAtTime(pitchTarget, audioCtx.currentTime, 0.3);
+        }
+
+        comfortUI.innerText = `${Math.floor(comfort)}%`;
+        progBar.style.width = `${((totalLevelDistance - distance) / totalLevelDistance) * 100}%`;
+    }
+
+    function render() {
+        const cycle = (Math.sin(time * 0.0004) + 1) / 2;
+        ctx.fillStyle = `rgb(${10 + cycle*30}, ${20 + cycle*60}, ${40 + cycle*100})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        stars.forEach(s => {
+            s.x -= 0.5; if (s.x < -10) s.x = canvas.width + 10;
+            ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(s.x, s.y, s.s, 0, Math.PI*2); ctx.fill();
+        });
+        const speedBonus = 1 + (upgrades.engines.level * 0.2);
+        
+        const config = levelConfig[currentLevel];
+
+        if (distance > totalLevelDistance - 100) {
+            drawAirport(plane.x - (totalLevelDistance - distance) * 50 * speedBonus, config.depAirport, true);
+        }
+        if (landingPhase) {
+            drawAirport(plane.x + (distance) * 50 * speedBonus, config.arrAirport, false);
+        }
+        
+        clouds.forEach(c => {
+            const windSpeed = boardingPhase ? 0 : c.s * 1.5 * speedBonus;
+            c.x -= windSpeed;
+            if (c.x < -c.w) { c.x = canvas.width + c.w; c.y = Math.random() * canvas.height; }
+            ctx.fillStyle = `rgba(255,255,255,${c.op})`;
+            ctx.beginPath(); ctx.ellipse(c.x, c.y, c.w/2, 25, 0, 0, Math.PI*2); ctx.fill();
+        });
+
+        // DRAW JET BRIDGE CONNECTING (ONLY ON DEPARTURE BOARDING PHASE)
+        if (boardingPhase && distance > totalLevelDistance - 100 && jetBridgeWidth > 0) {
+            drawBridgeConnectionDetails(plane.x, plane.y);
+        }
+
+        // DRAW FLOOR TANK (FUEL TRUCK) AND HOSE IN BOARDING PHASE
+        if (boardingPhase && distance > totalLevelDistance - 100) {
+            // Positioned under the right wing near the engine nacelle
+            drawRefuelTruck(plane.x + 75, canvas.height - 110, plane.x, plane.y);
+        }
+
+        drawPlane(plane);
+
+        // BOARDING & REFUELING HUD OVERLAY PANEL
+        if (boardingPhase) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+            ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(canvas.width / 2 - 220, 110, 440, 140, 16);
+            ctx.fill();
+            ctx.stroke();
+
+            // Status Header
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 15px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText("✈️ GATE A12 - PRE-FLIGHT PREPARATIONS", canvas.width / 2, 135);
+
+            // PASSENGER BOARDING PROGRESS
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '11px Inter';
+            ctx.textAlign = 'left';
+            ctx.fillText(`Manifest: ${passengersBoarded} / ${totalPassengers} Passengers Secured`, canvas.width / 2 - 180, 162);
+            
+            // Boarding Bar track
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.roundRect(canvas.width / 2 - 180, 170, 360, 8, 4);
+            ctx.fill();
+            // Boarding Bar fill
+            const pctBoarding = passengersBoarded / totalPassengers;
+            ctx.fillStyle = '#10b981';
+            ctx.beginPath();
+            ctx.roundRect(canvas.width / 2 - 180, 170, 360 * pctBoarding, 8, 4);
+            ctx.fill();
+
+            // COCKPIT REFUELING PROGRESS ("FLOOR TANK" TRUCK FUEL FLOW)
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '11px Inter';
+            ctx.textAlign = 'left';
+            ctx.fillText(`Fuel Tanks: ${Math.floor(fuelLoaded)}% / ${totalFuelNeeded}% Loaded`, canvas.width / 2 - 180, 202);
+            
+            // Fuel Bar track
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.roundRect(canvas.width / 2 - 180, 210, 360, 8, 4);
+            ctx.fill();
+            // Fuel Bar fill
+            const pctFuel = fuelLoaded / totalFuelNeeded;
+            ctx.fillStyle = '#f97316'; // Aviation Orange fuel line
+            ctx.beginPath();
+            ctx.roundRect(canvas.width / 2 - 180, 210, 360 * pctFuel, 8, 4);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        update();
+        requestAnimationFrame(render);
+    }
+
+    function drawBridgeConnectionDetails(px, py) {
+        drawJetBridge(px, py);
+        
+        // Render Walking Boarding Passengers inside/along the bridge
+        passengers.forEach(p => {
+            ctx.save();
+            ctx.fillStyle = p.color;
+            
+            ctx.beginPath();
+            ctx.arc(p.x, p.y - 12, 4, 0, Math.PI*2);
+            ctx.fill();
+
+            ctx.fillRect(p.x - 3, p.y - 8, 6, 12);
+
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1.5;
+            const legOffset = Math.sin(p.step) * 4;
+            ctx.beginPath();
+            ctx.moveTo(p.x - 2, p.y + 4);
+            ctx.lineTo(p.x - 2, p.y + 10 + legOffset);
+            ctx.moveTo(p.x + 2, p.y + 4);
+            ctx.lineTo(p.x + 2, p.y + 10 - legOffset);
+            ctx.stroke();
+
+            ctx.restore();
+        });
+    }
+
+    function showBriefing() {
+        const config = levelConfig[currentLevel];
+        msgTitle.innerText = config.title;
+        msgBody.innerText = config.desc;
+        shopContainer.classList.remove('hidden');
+        renderShop();
+        levelDetails.innerHTML = `
+            <div class="flex justify-between text-xs"><span>📋 <b>Target:</b></span> <span class="text-blue-400">${config.dist} NM</span></div>
+            <div class="flex justify-between text-xs"><span>🛫 <b>Departure:</b></span> <span class="text-orange-400 capitalize">${config.depAirport} Airport</span></div>
+            <div class="flex justify-between text-xs"><span>🛬 <b>Destination:</b></span> <span class="text-emerald-400 capitalize">${config.arrAirport} Airport</span></div>
+            <div class="flex justify-between text-xs"><span>💰 <b>Base Reward:</b></span> <span class="text-emerald-400">$${currentLevel * 500}</span></div>
+        `;
+        startBtn.innerText = "Start Flight Prep";
+        startBtn.onclick = startGame;
+        msgOverlay.style.display = 'block';
+        
+        if (engineGain) engineGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.5);
+    }
+
+    function startGame() {
+        const config = levelConfig[currentLevel];
+        gameActive = true;
+        comfort = 100;
+        totalLevelDistance = config.dist;
+        distance = totalLevelDistance;
+        
+        // Reset flight state back to boarding phase
+        boardingPhase = true;
+        takeoffPhase = false;
+        landingPhase = false;
+        passengersBoarded = 0;
+        passengers.length = 0;
+        fuelLoaded = 0;
+        jetBridgeWidth = 140;
+
+        // Reset Checklist
+        chkSecure.checked = false;
+        chkFuel.checked = false;
+        chkGear.checked = false;
+        chkAltitude.checked = false;
+        chkLanding.checked = false;
+
+        plane.y = canvas.height - 110;
+        plane.velY = 0; plane.rot = 0;
+        objects.length = 0;
+        levelUI.innerText = `LEVEL ${currentLevel}`;
+        msgOverlay.style.display = 'none';
+        shopContainer.classList.add('hidden');
+        
+        if (engineGain) engineGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.2);
+
+        // Sync EFB values for this flight
+        syncEFBWeather();
+        syncEFBUpgrades();
+    }
+
+    function endGame(title, body, nextLevel = false) {
+        gameActive = false;
+        msgTitle.innerText = title;
+        msgBody.innerText = body;
+        shopContainer.classList.add('hidden');
+        levelDetails.innerHTML = `<div class="text-center py-2 font-bold text-emerald-400">CREDITS BALANCE: $${Math.floor(credits)}</div>`;
+        startBtn.innerText = nextLevel ? "Go to Hangar" : "Retry Mission";
+        if (!nextLevel) currentLevel = 1; 
+        startBtn.onclick = nextLevel ? showBriefing : startGame;
+        msgOverlay.style.display = 'block';
+        updateCreditsUI();
+        
+        if (engineGain) engineGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.2);
+    }
+
+    renderShop();
+    showBriefing();
+    render();
+</script>
+</body>
+</html>
